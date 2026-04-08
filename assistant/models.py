@@ -15,13 +15,13 @@ class Name(Field):
 class Phone(Field):
     def __init__(self, value):
         if not (len(value) == 10 and value.isdigit()):
-            raise ValueError("Phone format must be 10 digits.")
+            raise ValueError("Номер телефону має складатися рівно з 10 цифр.")
         super().__init__(value)
 
 class Email(Field):
     def __init__(self, value):
         if not re.match(r"[^@]+@[^@]+\.[^@]+", value):
-            raise ValueError("Invalid email format.")
+            raise ValueError("Некоректний формат email.")
         super().__init__(value)
 
 class Birthday(Field):
@@ -29,7 +29,7 @@ class Birthday(Field):
         try:
             self.value = datetime.strptime(value, "%d.%m.%Y").date()
         except ValueError:
-            raise ValueError("Invalid date format. Use DD.MM.YYYY")
+            raise ValueError("Некоректний формат дати. Використовуйте DD.MM.YYYY.")
             
     def __str__(self):
         return self.value.strftime("%d.%m.%Y")
@@ -56,7 +56,7 @@ class Record:
             if p.value == old_phone:
                 self.phones[i] = Phone(new_phone)
                 return
-        raise ValueError("Phone not found.")
+        raise ValueError("Старий номер телефону не знайдено.")
 
     def add_birthday(self, birthday):
         self.birthday = Birthday(birthday)
@@ -68,11 +68,11 @@ class Record:
         self.address = Address(address)
 
     def __str__(self):
-        phones = ', '.join(p.value for p in self.phones)
-        email = f" | 📧 {self.email}" if self.email else ""
-        bday = f" | 🎂 {self.birthday}" if self.birthday else ""
-        address = f" | 🏠 {self.address}" if self.address else ""
-        return f"👤 {self.name.value}: 📞 {phones if phones else 'No phones'}{email}{bday}{address}"
+        phones = ', '.join(p.value for p in self.phones) if self.phones else "відсутні"
+        email = f" | Email: {self.email}" if self.email else ""
+        bday = f" | День народження: {self.birthday}" if self.birthday else ""
+        addr = f" | Адреса: {self.address}" if self.address else ""
+        return f"👤 {self.name.value:<15} | Тел: {phones:<15}{email}{bday}{addr}"
 
 class AddressBook(UserDict):
     def add_record(self, record):
@@ -92,10 +92,8 @@ class AddressBook(UserDict):
             if record.birthday:
                 bday = record.birthday.value
                 bday_this_year = bday.replace(year=today.year)
-                
                 if bday_this_year < today:
                     bday_this_year = bday_this_year.replace(year=today.year + 1)
-                
                 days_until = (bday_this_year - today).days
                 if 0 <= days_until <= days:
                     upcoming.append({"name": record.name.value, "date": bday_this_year.strftime("%d.%m.%Y")})
@@ -120,8 +118,8 @@ class Note:
         self.tags = tags if tags else []
 
     def __str__(self):
-        tags_str = f" [Tags: {', '.join(self.tags)}]" if self.tags else ""
-        return f"📝 {self.text}{tags_str}"
+        tags_str = f" [Теги: {', '.join(self.tags)}]" if self.tags else ""
+        return f"📜 {self.text}{tags_str}"
 
 class NotesBook(UserDict):
     def __init__(self):
@@ -129,23 +127,25 @@ class NotesBook(UserDict):
         self.note_id = 1
 
     def add_note(self, text, tags=None):
+        while self.note_id in self.data:
+            self.note_id += 1
         self.data[self.note_id] = Note(text, tags)
-        self.note_id += 1
+        return self.note_id
 
     def find_notes_by_text(self, keyword):
-        return [note for note in self.data.values() if keyword.lower() in note.text.lower()]
+        return {id: n for id, n in self.data.items() if keyword.lower() in n.text.lower()}
 
     def find_notes_by_tag(self, tag):
-        return [note for note in self.data.values() if tag.lower() in [t.lower() for t in note.tags]]
+        return {id: n for id, n in self.data.items() if tag.lower() in [t.lower() for t in n.tags]}
 
     def delete_note(self, note_id):
         if int(note_id) in self.data:
             del self.data[int(note_id)]
         else:
-            raise KeyError("Note not found.")
+            raise KeyError("Нотатку з таким ID не знайдено.")
 
     def edit_note(self, note_id, new_text):
         if int(note_id) in self.data:
             self.data[int(note_id)].text = new_text
         else:
-            raise KeyError("Note not found.")
+            raise KeyError("Нотатку з таким ID не знайдено.")
